@@ -31,8 +31,8 @@
       }
     },
     {
-      "name": "testexe",
-      "displayName": "Test exe",
+      "name": "Executable example",
+      "displayName": "Executable example",
       "description": "Exe build using Ninja generator",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/testexe",
