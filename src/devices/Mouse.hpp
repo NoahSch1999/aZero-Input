@@ -2,7 +2,6 @@
 #include <vector>
 #include <array>
 #include <type_traits>
-#include <tuple>
 #include <string>
 #include <stdexcept>
 #include "SDL3/SDL.h"
