@@ -5,30 +5,29 @@
 #include "SDL3/SDL.h"
 
 namespace aZero::Input {
+
+	// NOTE: I dont like this class being pretty much a namespace since we cant have multiple keyboards. 
+	// But its easier to have them under a single "namespace" than using the raw C function, so this is still ok...
 	class Keyboard {
 	public:
 		Keyboard(const Keyboard&) = delete;
 		Keyboard& operator=(const Keyboard&) = delete;
 
 		Keyboard() = default;
+
 		virtual ~Keyboard() = default;
 
-		Keyboard(Keyboard&& other) noexcept {
-			this->Move(other);
-		}
+		Keyboard(Keyboard&& other) noexcept = default;
 
-		Keyboard& operator=(Keyboard&& other) noexcept {
-			if (this != &other) {
-				this->Move(other);
-			}
-			return *this;
-		}
+		Keyboard& operator=(Keyboard&& other) noexcept = default;
 
-		bool IsKeyDown(SDL_Scancode scanCode) const { return m_KeyStates[scanCode]; }
+		static bool IsKeyDown(SDL_Scancode scanCode) { return m_KeyStates[scanCode]; }
 
-		void UpdateKeyStates() { m_KeyStates = SDL_GetKeyboardState(&m_NumKeys); }
+		static void UpdateState() { m_KeyStates = SDL_GetKeyboardState(&m_NumKeys); }
 
 		static std::string GetKeyName(SDL_Keycode keyCode) { return SDL_GetKeyName(keyCode); }
+
+		static bool IsConnected() { return SDL_HasKeyboard(); }
 
 		static std::vector<SDL_KeyboardID> GetKeyboards() {
 			int32_t count = 0;
@@ -45,7 +44,7 @@ namespace aZero::Input {
 		}
 
 		static std::vector<std::string> GetKeyboardNames() {
-			std::vector<SDL_KeyboardID> keyboards = Keyboard::GetKeyboards();
+			const std::vector<SDL_KeyboardID> keyboards = Keyboard::GetKeyboards();
 
 			std::vector<std::string> names;
 			names.reserve(keyboards.size());
@@ -58,13 +57,8 @@ namespace aZero::Input {
 		}
 
 	private:
-		void Move(Keyboard& other) {
-			m_KeyStates = std::exchange(other.m_KeyStates, nullptr);
-			m_NumKeys = std::exchange(other.m_NumKeys, 0);
-		}
-
 		// States of SDL_Scancode
-		const bool* m_KeyStates = nullptr;
-		int32_t m_NumKeys = 0;
+		inline static const bool* m_KeyStates = nullptr;
+		inline static int32_t m_NumKeys = 0;
 	};
 }

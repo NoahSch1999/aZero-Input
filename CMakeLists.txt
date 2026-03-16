@@ -22,8 +22,9 @@ if (COMPILE_EXAMPLE)
         GIT_REPOSITORY https://github.com/NoahSch1999/aZero-Window.git
         GIT_TAG main
     )
-    set(TEST_EXE OFF CACHE BOOL "" FORCE)
+    set(COMPILE_EXAMPLE OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(aZeroWindow)
+
     target_link_libraries(aZeroInput PUBLIC aZeroWindow)
     target_compile_definitions(aZeroInput PUBLIC COMPILE_EXAMPLE)
 else()

@@ -2,10 +2,12 @@
 #include "DeviceController.hpp"
 #include "devices/gamepad.hpp"
 #include "devices/Keyboard.hpp"
+#include "devices/Mouse.hpp"
 
 namespace aZero::Input {
 	using GamepadListener = DeviceListener<Gamepad>;
 	using KeyboardListener = DeviceListener<Keyboard>;
+	using MouseListener = DeviceListener<Mouse>;
 
 	struct DeviceManager
 	{
@@ -36,24 +38,29 @@ namespace aZero::Input {
 			return KeyboardListener(m_Keyboard, m_Keyboard->m_Device, id, "");
 		}
 
+		MouseListener ListenMouse(ListenerCallbacks<Mouse>&& callbacks)
+		{
+			if (!m_Mouse)
+			{
+				return MouseListener();
+			}
+			const DeviceListenerID id = m_NextListenerId++;
+			m_Mouse->m_Listeners[id] = ListenerCallbacks<Mouse>(std::forward<ListenerCallbacks<Mouse>>(callbacks));
+			return MouseListener(m_Mouse, m_Mouse->m_Device, id, "");
+		}
+
 		void UpdateDeviceStates()
 		{
-			if (m_Keyboard) {
-				m_Keyboard->m_Device.UpdateKeyStates();
-				// TODO: Update mice states
-			}
+			Keyboard::UpdateState();
+			Mouse::UpdateState();
 		}
 
 		void ProcessEvent(const SDL_Event& event)
 		{
 			if (m_Keyboard)
 			{
-				if (event.kdevice.type == SDL_EVENT_KEYBOARD_ADDED && !m_Keyboard)
-				{
-					m_Keyboard = std::make_shared<DeviceController<Keyboard>>(Keyboard());
-				}
 				// TODO: Look into this. We support one keyboard, but some keyboards have multiple ids for a single keyboard...
-				else if (event.kdevice.type == SDL_EVENT_KEYBOARD_REMOVED && Input::Keyboard::GetKeyboards().size() == 0)
+				if (event.kdevice.type == SDL_EVENT_KEYBOARD_REMOVED && Input::Keyboard::IsConnected())
 				{
 					for (auto& [id, callbacks] : m_Keyboard->m_Listeners) {
 						callbacks.m_OnDisconnect(event, m_Keyboard->m_Device);
@@ -65,6 +72,41 @@ namespace aZero::Input {
 					for (auto& [id, callbacks] : m_Keyboard->m_Listeners) {
 						callbacks.m_OnEvent(event, m_Keyboard->m_Device);
 					}
+				}
+			}
+			else
+			{
+				if (event.kdevice.type == SDL_EVENT_KEYBOARD_ADDED)
+				{
+					m_Keyboard = std::make_shared<DeviceController<Keyboard>>(Keyboard());
+				}
+			}
+
+			if (m_Mouse)
+			{
+				// TODO: Look into this. We support one mouse, but some mice have multiple ids for a single mouse...
+				if (event.kdevice.type == SDL_EVENT_MOUSE_REMOVED && Input::Mouse::IsConnected())
+				{
+					for (auto& [id, callbacks] : m_Mouse->m_Listeners) {
+						callbacks.m_OnDisconnect(event, m_Mouse->m_Device);
+					}
+					m_Mouse.reset();
+				}
+				else if (
+				/* Button event   */ event.mdevice.type == SDL_EVENT_MOUSE_BUTTON_UP || event.mdevice.type == SDL_EVENT_MOUSE_BUTTON_DOWN
+				/* Move   event   */ || event.mdevice.type == SDL_EVENT_MOUSE_MOTION
+				/* Scroll event   */ || event.mdevice.type == SDL_EVENT_MOUSE_WHEEL)
+				{
+					for (auto& [id, callbacks] : m_Mouse->m_Listeners) {
+						callbacks.m_OnEvent(event, m_Mouse->m_Device);
+					}
+				}
+			}
+			else
+			{
+				if (event.mdevice.type == SDL_EVENT_MOUSE_ADDED)
+				{
+					m_Mouse = std::make_shared<DeviceController<Mouse>>(Mouse());
 				}
 			}
 			
@@ -115,7 +157,7 @@ namespace aZero::Input {
 
 			m_Gamepads.clear();
 			m_Keyboard.reset();
-			// TODO: Release mice
+			m_Mouse.reset();
 
 			const auto gamepads = Input::Gamepad::GetGamepads();
 			for (const auto id : gamepads)
@@ -125,12 +167,15 @@ namespace aZero::Input {
 				m_Gamepads.emplace(id, std::make_shared<DeviceController<Gamepad>>(std::move(gamepad)));
 			}
 
-			if (Input::Keyboard::GetKeyboards().size() > 0)
+			if (Input::Keyboard::IsConnected())
 			{
 				m_Keyboard = std::make_shared<DeviceController<Keyboard>>(Keyboard());
 			}
 
-			// TODO: Load mice
+			if (Input::Mouse::IsConnected())
+			{
+				m_Mouse = std::make_shared<DeviceController<Mouse>>(Mouse());
+			}
 		}
 
 		std::vector<std::string> GetGamepadGUIDS() const 
@@ -147,6 +192,7 @@ namespace aZero::Input {
 	private:
 		std::unordered_map<SDL_JoystickID, std::shared_ptr<DeviceController<Gamepad>>> m_Gamepads;
 		std::shared_ptr<DeviceController<Keyboard>> m_Keyboard;
+		std::shared_ptr<DeviceController<Mouse>> m_Mouse;
 		DeviceListenerID m_NextListenerId = 0;
 	};
 }
